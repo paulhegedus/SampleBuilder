@@ -19,6 +19,9 @@
 #' by making a buffer the width of the transects around the line layer and removing
 #' sections of the line layer where the buffer overlaps.
 #'
+#' Note, transect locations are random, so every time this function is run you will
+#' receive a new set of transects.
+#'
 #' @param line_layer_path Character, path to the .shp file of the line layer to build
 #' transects from.
 #' @param t_number Numeric, the approximate number of transects to generate.
@@ -349,11 +352,11 @@ get_samp_pts <- function(t_sp, n, epsg) {
   sfc <- do.call(sf::st_sfc, line_list)
   t_lines <- sf::st_sf(
     data.frame(id = 1:length(line_list),
-               azimuth = geosphere::bearing(st_coordinates(line_pts),
-                                            st_coordinates(t_pts)),
+               azimuth = geosphere::bearing(sf::st_coordinates(line_pts),
+                                            sf::st_coordinates(t_pts)),
                geom = sfc)
   ) %>%
-    st_set_crs(4326)
+    sf::st_set_crs(4326)
   # return transect lines in lat long
   return(t_lines)
 }

@@ -55,4 +55,7 @@ While all overlaps are not guaranteed to be removed, setting 'allow_overlaps' to
 FALSE (default) will restrict sampling to where the risk is minimized. This is done
 by making a buffer the width of the transects around the line layer and removing
 sections of the line layer where the buffer overlaps.
+
+Note, transect locations are random, so every time this function is run you will
+receive a new set of transects.
 }
