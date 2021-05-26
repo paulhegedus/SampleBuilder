@@ -3,6 +3,8 @@
 
 # SampleBuilder
 
+Paul Hegedus
+
 <!-- badges: start -->
 
 <!-- badges: end -->
@@ -30,7 +32,7 @@ line layer:
 library(SampleBuilder)
 
 ## Make Transects
-transect_lines <- make_transects(
+t_lines <- make_transects(
   line_layer_path = "/Path/To/The/Line/Layer/Filename.shp",
   t_number = 10, # 10 transects
   t_length = 1000, # l000m transect length
@@ -40,8 +42,23 @@ transect_lines <- make_transects(
   allow_overlaps = FALSE # overlaps of transects are allowed
 )
 
-## Save
-sf::st_write(transect_lines, "/Path/To/Save/Location/And/Filename.shp")
+## Make Points along Transects
+t_pts <- make_transect_pts(t_lines, 1000, 10)
+
+## Create Sampling Info - data.frame with 'name', 'type', and 'default' cols
+sampling_info <- data.frame(
+  name = c("date", "comment1", "comment2", "comment3"),
+  type = c("character", "character", "character", "character"),
+  default = rep(NA, 4)
+)
+
+## Add Sampling Information to File
+t_lines_wInfo <- add_info(t_lines, sampling_info)
+t_pts_wInfo <- add_info(t_pts, sampling_info)
+
+## Save Transect Lines and Points
+sf::st_write(t_lines_wInfo, "/Path/To/Save/Location/And/Filename.shp")
+sf::st_write(t_pts_wInfo, "/Path/To/Save/Location/And/Filename.shp")
 ```
 
 <div class="figure" style="text-align: center">
