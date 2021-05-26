@@ -66,7 +66,8 @@ make_transects <- function(line_layer_path,
 
   ## Clip line layer to avoid overlapping transects
   if (!allow_overlaps) {
-    line_layer <- .clip_to_valid_sampling_area(line_layer, t_length)
+    line_layer <- clip_to_valid_sampling_area(line_layer,
+                                                              t_length)
   }
 
   ## Get the number of transect points for each segment in the line layer
@@ -74,7 +75,10 @@ make_transects <- function(line_layer_path,
   ## transects will be in both directions from the line, and whether
   ## a buddy transect will be used
   line_layer$segment <- 1:nrow(line_layer)
-  line_layer$n <- .get_n(line_layer, t_number, direction, buddy_t)
+  line_layer$n <- get_n(line_layer,
+                                        t_number,
+                                        direction,
+                                        buddy_t)
 
   ## TODO - make function
   ## For each road in layer make transects
@@ -91,11 +95,11 @@ make_transects <- function(line_layer_path,
     utm_epsg <- calcUTMzone(line_shp)
     # make line offsets
     t_sp <- lapply(coords,
-                   .make_line_offsets,
+                   make_line_offsets,
                    direction,
                    t_length,
                    utm_epsg) %>%
-      .fix_t_sp(direction) %>%
+      fix_t_sp(direction) %>%
       lapply(sf::st_as_sf)
 
     ## Sample points along transect offset layers
@@ -111,7 +115,7 @@ make_transects <- function(line_layer_path,
     ## if buddy system is used
     if (buddy_t) {
       t_pts$buddy_pts <- mapply(
-        .make_buddies,
+        make_buddies,
         buff_pts,
         t_sp,
         MoreArgs = list(t_size = t_size,
@@ -122,7 +126,7 @@ make_transects <- function(line_layer_path,
     }
 
     ## Connect Transects & combine
-    t_lines[[i]] <- lapply(t_pts, .make_transect_lines, line_shp) %>%
+    t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
       do.call(rbind, .)
 
   } ## end for each segment of line layer
@@ -205,7 +209,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 
 ## clip line layer to a valid sampling area that excludes zones where
 ## transects coming off of lines could intersect other transects
-.clip_to_valid_sampling_area <- function(line_layer,
+clip_to_valid_sampling_area <- function(line_layer,
                                          t_length) {
   # make buffer of length of transect around line layer
   buff_layer <- sf::st_buffer(line_layer, t_length)
@@ -226,7 +230,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
     }
   }
   one_buff_layer <- lapply(new_buff_layer, function(df) df[, "geometry"]) %>%
-    do.call(rbind, .) %>%
+    do.call(rbind, .)
 
   # clip line area by valid sampling area to remove portions of lines
   # where a transect could overlap with another
@@ -237,7 +241,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 
 ## Given a vector (defined by 2 points) and the distance,
 ## calculate a new vector that is distance away from the original
-.segment_shift <- function(x, y, d){
+segment_shift <- function(x, y, d){
   # calculate vector
   v <- c(x[2] - x[1],y[2] - y[1])
   # normalize vector
@@ -249,7 +253,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 }
 
 ## Generate a perpendicular line to another a specified distance away
-.offset_line <- function(line_coords, d, utm_epsg) {
+offset_line <- function(line_coords, d, utm_epsg) {
 
   # allocate memory
   xn <- numeric((nrow(line_coords) - 1) * 2)
@@ -259,7 +263,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
   for (i in 1:(nrow(line_coords) - 1)) {
     xs <- c(line_coords$x[i], line_coords$x[i + 1])
     ys <- c(line_coords$y[i], line_coords$y[i + 1])
-    new.s <- .segment_shift(xs, ys, d)
+    new.s <- segment_shift(xs, ys, d)
     t_df[(i - 1) * 2 + 1, "x"] <- new.s$x[1]
     t_df[(i - 1) * 2 + 2, "x"] <- new.s$x[2]
     t_df[(i - 1) * 2 + 1, "y"] <- new.s$y[1]
@@ -275,21 +279,21 @@ get_samp_pts <- function(t_sp, n, epsg) {
   return(line_sp)
 }
 ## Make parallel lines to the line shape
-.make_line_offsets <- function(coords,
+make_line_offsets <- function(coords,
                                direction,
                                t_length,
                                utm_epsg) {
   if (length(direction) > 1) {
     t_sp <- list(
-      pos_t_sp = .offset_line(coords, t_length, utm_epsg),
-      neg_t_sp = .offset_line(coords, -t_length, utm_epsg)
+      pos_t_sp = offset_line(coords, t_length, utm_epsg),
+      neg_t_sp = offset_line(coords, -t_length, utm_epsg)
     ) %>%
       lapply(sf::st_as_sf)
   } else {
     if (direction == "positive") {
-      t_sp <- .offset_line(coords, t_length, utm_epsg)
+      t_sp <- offset_line(coords, t_length, utm_epsg)
     } else {
-      t_sp <- .offset_line(coords, -t_length, utm_epsg)
+      t_sp <- offset_line(coords, -t_length, utm_epsg)
     }
   }
   return(t_sp)
@@ -297,7 +301,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 
 # Get the number of transects for each road feature, based on distance of each
 # road segment. (samples stratified on length of road segment)
-.get_n <- function(line_layer,
+get_n <- function(line_layer,
                   t_number,
                   direction,
                   buddy_t) {
@@ -305,7 +309,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
   sum_len <- sum(line_layer$len_m)
   n_frac <- line_layer$len_m / sum_len
   n_vec <- round(t_number * n_frac) %>%
-    as.numeric
+    as.numeric()
 
   sum_multiplier <- 1
   if (length(direction) > 1) {
@@ -329,7 +333,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 }
 
 ## Make points within one transect size and 3 transect sizes
-.make_buddies <- function(samp_pts,
+make_buddies <- function(samp_pts,
                          t_sp_l,
                          t_size,
                          utm_epsg) {
@@ -339,14 +343,18 @@ get_samp_pts <- function(t_sp, n, epsg) {
   for (i in 1:length(samp_pts_l)) {
     samp_pts_l[[i]] <- samp_pts[i, ]
   }
-  buddy_pts <- lapply(samp_pts_l, .make_buddy_pt, t_sp_l, t_size, utm_epsg) %>%
+  buddy_pts <- lapply(samp_pts_l,
+                      make_buddy_pt,
+                      t_sp_l,
+                      t_size,
+                      utm_epsg) %>%
     do.call(rbind, .)
 
   return(buddy_pts)
 }
 
 ## make the point on a line that's a buddy to another
-.make_buddy_pt <- function(samp_pts_j,
+make_buddy_pt <- function(samp_pts_j,
                            t_sp_l,
                            t_size,
                            utm_epsg) {
@@ -366,7 +374,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 }
 
 ## make the lines for transects
-.make_transect_lines <- function(t_pts,
+make_transect_lines <- function(t_pts,
                                 line_shp) {
   # convert into lat long
   t_pts <- sf::st_transform(t_pts, 4326)
@@ -410,7 +418,7 @@ get_samp_pts <- function(t_sp, n, epsg) {
 }
 
 ## Relabel 't_sp' with the direction
-.fix_t_sp <- function(t_sp, direction) {
+fix_t_sp <- function(t_sp, direction) {
   if (length(direction) == 1) {
     t_sp <- lapply(t_sp, sf::st_as_sf) %>%
       do.call(rbind, .)

@@ -47,9 +47,9 @@ t_pts <- make_transect_pts(t_lines, 1000, 10)
 
 ## Create Sampling Info - data.frame with 'name', 'type', and 'default' cols
 sampling_info <- data.frame(
-  name = c("date", "comment1", "comment2", "comment3"),
-  type = c("character", "character", "character", "character"),
-  default = rep(NA, 4)
+  name = c("date", "observer", "comment1", "comment2", "comment3", "comment4", "comment5"),
+  type = rep("character", 7),
+  default = rep(NA, 7)
 )
 
 ## Add Sampling Information to File
@@ -81,8 +81,28 @@ This is a basic example of how to build a gridded sampling design for an
 area:
 
 ``` r
-# library(SampleBuilder)
-## basic example code
+library(SampleBuilder)
+
+## Make Grid
+grid_dat <- make_grid(poly_layer_path = "/Path/To/The/Poly/Layer/Filename.shp",
+                      cellsize = 61) # in meters (~200 feet)
+
+## Get Centroids of grid
+grid_centroids <- get_centroids(grid_dat)
+
+## Create Sampling Info - data.frame with 'name', 'type', and 'default' cols
+sampling_info <- data.frame(
+  name = c("date", "observer", "comment1", "comment2", "comment3", "comment4", "comment5"),
+  type = rep("character", 7),
+  default = rep(NA, 7)
+)
+
+## Add Sampling Information to File
+grid_pts_wInfo <- add_info(grid_centroids, sampling_info)
+
+## Save Grid and Points
+sf::st_write(grid_dat, "/Path/To/Save/Location/And/Filename.shp")
+sf::st_write(grid_pts_wInfo, "/Path/To/Save/Location/And/Filename.shp")
 ```
 
 ## Make Random Points Example
@@ -90,6 +110,27 @@ area:
 This is a basic example of how to build random points across an area:
 
 ``` r
-# library(SampleBuilder)
-## basic example code
+library(SampleBuilder)
+
+## Get Area Boundary
+poly_dat <- get_data("/Path/To/The/Poly/Layer/Filename.shp")
+
+## Get Random Samples across Polygon
+rand_pts <- sp::spsample(x = as(poly_dat, "Spatial"), 
+                         n = 18,  
+                         type = "random") %>% 
+  sf::st_as_sf()
+
+## Create Sampling Info - data.frame with 'name', 'type', and 'default' cols
+sampling_info <- data.frame(
+  name = c("date", "observer", "comment1", "comment2", "comment3", "comment4", "comment5"),
+  type = rep("character", 7),
+  default = rep(NA, 7)
+)
+
+## Add Sampling Information to File
+rand_pts_wInfo <- add_info(rand_pts, sampling_info)
+
+## Save Transect Lines and Points
+sf::st_write(rand_pts_wInfo, "/Path/To/Save/Location/And/Filename.shp")
 ```

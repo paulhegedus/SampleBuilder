@@ -21,7 +21,8 @@ calcUTMzone = function(FILE) {
     # get boundary of file
     bounds <- sf::st_bbox(FILE)
     # calculate zone
-    utm_zone <- ceiling((bounds["xmin"] + 180) / 6) %>% as.numeric()
+    utm_zone <- ceiling((bounds["xmin"] + 180) / 6) %>%
+      as.numeric()
     # check hemisphere
     if (bounds["ymin"] > 0 | bounds["ymax"] > 0) {
       utm_epsg <- paste0(326, utm_zone)
@@ -54,14 +55,14 @@ get_data <- function(data_path) {
 #' a unique attribute field with the name spacified (e.g. comment), the type of
 #' data (e.g. text), and the default value (e.g. foobar).
 #'
-#'  @param layer An 'sf' class object to add information to
-#'  @param info A data.frame with each row representing a new attribute field.
-#'  Must have columns called; 'name', 'type', 'default'. Put the name of the
-#'  attribute field in the rows of the 'name' column, the type of data in the
-#'  'type' column (text, integer, real, or logical), and the desired
-#'  default value in the 'default' column.
-#'  @return A 'sf' object with the added information added.
-#'  @export
+#' @param layer An 'sf' class object to add information to
+#' @param info A data.frame with each row representing a new attribute field.
+#' Must have columns called; 'name', 'type', 'default'. Put the name of the
+#' attribute field in the rows of the 'name' column, the type of data in the
+#' 'type' column (text, integer, real, or logical), and the desired
+#' default value in the 'default' column.
+#' @return A 'sf' object with the added information added.
+#' @export
 add_info <- function(layer, info) {
   stopifnot(is.data.frame(info),
             any(grepl("name", names(info))),

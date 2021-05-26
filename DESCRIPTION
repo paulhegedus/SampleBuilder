@@ -1,6 +1,6 @@
 Package: SampleBuilder
 Title: Functions for building sampling designs
-Version: 0.0.0.9004
+Version: 0.0.1
 Authors@R: c(
     person(given = "Paul",
            family = "Hegedus",
@@ -21,8 +21,11 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Depends:
     R (>= 3.0.0),
-    magrittr
+    magrittr,
+    methods
 Imports: 
     sf,
     geosphere,
-    sp
+    sp,
+    raster
+    
