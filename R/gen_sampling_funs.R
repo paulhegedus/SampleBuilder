@@ -46,3 +46,53 @@ get_data <- function(data_path) {
   x <- sf::st_transform(x, crs = sf::st_crs(utm_epsg))
   return(x)
 }
+
+#' @title Add sampling info to layers
+#'
+#' @description Add attributes and fields to layers that you will
+#' want to collect in the field. Pass in a data.frame with each row
+#' a unique attribute field with the name spacified (e.g. comment), the type of
+#' data (e.g. text), and the default value (e.g. foobar).
+#'
+#'  @param layer An 'sf' class object to add information to
+#'  @param info A data.frame with each row representing a new attribute field.
+#'  Must have columns called; 'name', 'type', 'default'. Put the name of the
+#'  attribute field in the rows of the 'name' column, the type of data in the
+#'  'type' column (text, integer, real, or logical), and the desired
+#'  default value in the 'default' column.
+#'  @return A 'sf' object with the added information added.
+#'  @export
+add_info <- function(layer, info) {
+  stopifnot(is.data.frame(info),
+            any(grepl("name", names(info))),
+            any(grepl("type", names(info))),
+            any(grepl("default", names(info)))
+            )
+  # add fields
+  temp <- matrix(NA, nrow = nrow(layer), ncol = nrow(info)) %>%
+    as.data.frame()
+  names(temp) <- info[, "name"]
+
+  for (i in 1:ncol(temp)) {
+    if (info[i, "type"] == "text") {
+      temp[, i] <- as.character(info[i, "default"])
+    }
+    if (info[i, "type"] == "integer") {
+      temp[, i] <- as.integer(info[i, "default"])
+    }
+    if (info[i, "type"] == "real") {
+      temp[, i] <- as.numeric(info[i, "default"])
+    }
+    if (info[i, "type"] == "logical") {
+      temp[, i] <- as.logical(info[i, "default"])
+    }
+  }
+
+  # return points
+  layer_update <- cbind(layer, temp)
+
+  return(layer_update)
+}
+
+
+

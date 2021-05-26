@@ -20,7 +20,8 @@
 #' sections of the line layer where the buffer overlaps.
 #'
 #' Note, transect locations are random, so every time this function is run you will
-#' receive a new set of transects.
+#' receive a new set of transects. Also note, if error occurs saying "n too small"
+#' simply rerun the function a couple times.
 #'
 #' @param line_layer_path Character, path to the .shp file of the line layer to build
 #' transects from.
@@ -34,6 +35,7 @@
 #' @param allow_overlaps Logical, default is FALSE, whether to remove areas of line where
 #' transects could overlap with other transects.
 #' @return A 'sf' object with transect lines and ID numbers in lat long.
+#' @export
 make_transects <- function(line_layer_path,
                            # poly_layer_path,
                            t_number,
@@ -127,11 +129,57 @@ make_transects <- function(line_layer_path,
 
   ## Combine transects from all segments & add attribute to add comment
   transect_lines <- do.call(rbind, t_lines)
-  # transect_lines$comment <- character(nrow(transect_lines))
+  transect_lines$comment <- character(nrow(transect_lines))
 
   # Return transect lines
   return(transect_lines)
 }
+
+#' @title Make points at center of transect cells
+#'
+#' @description Lays points out at the center of sampling cells along a transect.
+#' User supplies a layer with transect lines, the length of each transect, and the
+#' size (assumed to be a square) of the transect cells. Returns a point layer with
+#' a transect ID and distance along transect to form a unique point ID.
+#'
+#' @param t_lines An 'sf' object with transect lines.
+#' @param t_length The length of the transects in 't_layer' (in meters).
+#' @param t_size The size of the transect cells (in meters), assumed to be
+#' square (t_size x t_size).
+#' @return An 'sf' object with sampling points along transect lines.
+#' @export
+make_transect_pts <- function(t_lines,
+                              t_length,
+                              t_size) {
+  utm_epsg <- calcUTMzone(t_lines)
+  t_lines_proj <- sf::st_transform(t_lines, utm_epsg)
+  point_list <- split(t_lines_proj, seq(nrow(t_lines_proj)))
+
+  # for each transect line
+  for (i in 1:length(point_list)) {
+    point_list[[i]] <- sp::spsample(as(point_list[[i]], "Spatial"),
+                                (t_length / (t_size / 2)),
+                                type = "regular",
+                                offset = 0) %>%
+      sf::st_as_sf()
+    #ggplot(t_lines_proj[i, ]) +geom_sf() + geom_sf(data = point_list[[i]] )
+    #st_distance( point_list[[i]])
+    point_list[[i]] <- point_list[[i]][-seq(1, nrow(point_list[[i]]), 2), ]
+    point_list[[i]]$t_id <- rep(t_lines_proj[i, "id"]$id,
+                                   nrow(point_list[[i]])) %>%
+      as.character()
+    point_list[[i]]$dist <- seq(t_size,
+                                t_length,
+                                t_size) %>%
+      as.character()
+    point_list[[i]]$id <- paste(point_list[[i]]$t_id, point_list[[i]]$dist, sep = ".")
+  }
+  points_sdf <- do.call(rbind, point_list) %>%
+    sf::st_transform(4326)
+
+  return(points_sdf)
+}
+
 
 #' @title Randomly sample points on a line
 #'
