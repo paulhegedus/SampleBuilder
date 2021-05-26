@@ -85,7 +85,7 @@ library(SampleBuilder)
 
 ## Make Grid
 grid_dat <- make_grid(poly_layer_path = "/Path/To/The/Poly/Layer/Filename.shp",
-                      cellsize = 61) # in meters (~200 feet)
+                      cell_size = 61) # in meters (~200 feet)
 
 ## Get Centroids of grid
 grid_centroids <- get_centroids(grid_dat)
@@ -104,6 +104,19 @@ grid_pts_wInfo <- add_info(grid_centroids, sampling_info)
 sf::st_write(grid_dat, "/Path/To/Save/Location/And/Filename.shp")
 sf::st_write(grid_pts_wInfo, "/Path/To/Save/Location/And/Filename.shp")
 ```
+
+<div class="figure" style="text-align: center">
+
+<img src="man/figures/gridded_pnt_sampling.png" alt="**Figure 2.** Example of 200 foot grid cells with centroid locations for sampling." width="100%" />
+
+<p class="caption">
+
+**Figure 2.** Example of 200 foot grid cells with centroid locations for
+sampling.
+
+</p>
+
+</div>
 
 ## Make Random Points Example
 
@@ -134,3 +147,16 @@ rand_pts_wInfo <- add_info(rand_pts, sampling_info)
 ## Save Transect Lines and Points
 sf::st_write(rand_pts_wInfo, "/Path/To/Save/Location/And/Filename.shp")
 ```
+
+<div class="figure" style="text-align: center">
+
+<img src="man/figures/rand_pts_sampling.png" alt="**Figure 3.** Example of random point sampling (note that SampleBuilder not really needed)." width="100%" />
+
+<p class="caption">
+
+**Figure 3.** Example of random point sampling (note that SampleBuilder
+not really needed).
+
+</p>
+
+</div>
