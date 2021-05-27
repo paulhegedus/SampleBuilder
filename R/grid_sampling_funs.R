@@ -51,6 +51,12 @@ get_centroids <- function(grid_dat) {
   ## put in lat long
   cell_grid_out <- sf::st_transform(cell_centroids, 4326)
 
+  ## put lat and long coords in file
+  temp <- as(cell_grid_out, "Spatial") %>%
+    sp::coordinates()
+  cell_grid_out <- cbind(cell_grid_out, temp) %>%
+    `names<-`(c("id", "long", "lat", "geometry"))
+
   return(cell_grid_out)
 }
 
