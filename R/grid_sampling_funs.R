@@ -15,7 +15,7 @@ make_grid <- function(poly_layer_path,
   ## get the polygon data & put in utm coords
   poly_dat <- get_data(poly_layer_path)
   ## make the grid using meters
-  cell_grid <- sf::st_make_grid(poly_dat, cellsize = 61) %>%
+  cell_grid <- sf::st_make_grid(poly_dat, cellsize = cell_size) %>%
     sf::st_as_sf() %>%
     rename_geometry("geometry")
   cell_grid$id <- seq(1:nrow(cell_grid))
