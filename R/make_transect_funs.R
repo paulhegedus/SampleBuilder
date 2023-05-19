@@ -130,7 +130,6 @@ make_transects <- function(line_layer_path,
           do.call(rbind, .)
       }
 
-<<<<<<< HEAD
       if("buddy_pts" %in% names(t_pts)) {
         bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
         if(length(bad_buddies) > 0) {
