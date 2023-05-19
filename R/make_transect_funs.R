@@ -130,15 +130,21 @@ make_transects <- function(line_layer_path,
           do.call(rbind, .)
       }
 
-      bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
-      if(length(bad_buddies) > 0) {
-        t_pts$buff_pts <- t_pts$buff_pts[-bad_buddies, "x"]
-        t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
+      if("buddy_pts" %in% names(t_pts)) {
+        bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
+        if(length(bad_buddies) > 0) {
+          t_pts$buff_pts <- t_pts$buff_pts[-bad_buddies, "x"]
+          t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
+        }
       }
 
       ## Connect Transects & combine
-      t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
-        do.call(rbind, .)
+      if(length(t_pts) > 1) {
+        if(nrow(t_pts$buddy_pts) != 0 & nrow(t_pts$buff_pts) != 0) {
+          t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
+            do.call(rbind, .)
+        }
+      }
     }
   } ## end for each segment of line layer
 
