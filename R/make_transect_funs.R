@@ -48,6 +48,8 @@ make_transects <- function(line_layer_path,
                            direction = c("positive", "negative"),
                            allow_overlaps = FALSE,
                            stratify_on_length = TRUE) {
+  # browser()
+
   ## Parameter checks
   stopifnot(is.character(line_layer_path),
             # is.character(poly_layer_path),
@@ -59,14 +61,14 @@ make_transects <- function(line_layer_path,
             !any(!grepl("positive|negative", direction)),
             is.logical(allow_overlaps))
 
+  ## Import line and poly layers (puts in UTM)
+  line_layer <- get_data(line_layer_path)
+  # poly_layer <- get_data(poly_layer_path)
+
   ## If buddy_t == TRUE and transect number is odd number
   if (buddy_t & (t_number %% 2) != 0) {
     t_number <- t_number + 1
   }
-
-  ## Import line and poly layers (puts in UTM)
-  line_layer <- get_data(line_layer_path)
-  # poly_layer <- get_data(poly_layer_path)
 
   ## Clip line layer to avoid overlapping transects
   if (!allow_overlaps) {
@@ -86,87 +88,223 @@ make_transects <- function(line_layer_path,
 
   ## TODO - make function
   ## For each road in layer make transects
-  t_lines <- list(rep(NA, nrow(line_layer)))
+  t_lines <- rep(list(NA), nrow(line_layer))
   for (i in 1:nrow(line_layer)) {
     line_shp <- line_layer[i, ]
 
     ## Make Transect Offsets (in both directions)
     # make coordinates
-    coords <- sp::coordinates(as(line_shp, "Spatial"))[[1]] %>%
-      lapply(as.data.frame) %>%
-      # do.call(rbind, .) %>%
-      lapply(function(x) {x %>% `names<-`(c("x", "y"))})
+    tryCatch({
+      coords <- sp::coordinates(as(line_shp, "Spatial"))[[1]] %>%
+        lapply(as.data.frame) %>%
+        # do.call(rbind, .) %>%
+        lapply(function(x) {x %>% `names<-`(c("x", "y"))})
+    },
+    warning=function(w){
+      print('WARNING making coordinates')
+    },
+    error=function(e){
+      print('ERROR making coordinates')
+    })
+
     utm_epsg <- calcUTMzone(line_shp)
     # make line offsets
-    t_sp <- lapply(coords,
-                   make_line_offsets,
-                   direction,
-                   t_length,
-                   utm_epsg) %>%
-      fix_t_sp(direction) %>%
-      lapply(sf::st_as_sf)
+    tryCatch({
+      t_sp <- lapply(coords,
+                     make_line_offsets,
+                     direction,
+                     t_length,
+                     utm_epsg) %>%
+        fix_t_sp(direction) %>%
+        lapply(sf::st_as_sf)
+    },
+    warning=function(w){
+      print('WARNING making line offsets')
+    },
+    error=function(e){
+      print('ERROR making line offsets')
+    })
+
+    tryCatch({
+      temp_buff <- sf::st_buffer(line_shp, t_length-1)
+      for (j in 1:length(t_sp)) {
+        t_sp[[j]] <- suppressWarnings(sf::st_difference(t_sp[[j]], temp_buff))
+      }
+    },
+    warning=function(w){
+      print('WARNING fixing line offsets')
+    },
+    error=function(e){
+      print('ERROR fixing line offsets')
+    })
 
     ## Sample points along transect offset layers
     n <- line_layer$n[i]
     if (n > 0) {
-      buff_pts <- mapply(get_samp_pts, t_sp, n, utm_epsg)
-      t_pts <- list(
-        buff_pts = lapply(buff_pts, sf::st_as_sf) %>%
-          do.call(rbind, .)
-      )
+      # browser()
+
+      tryCatch({
+        samp_pts <- mapply(get_samp_pts, t_sp, n, utm_epsg)
+        t_pts <- list(
+          samp_pts = lapply(samp_pts, sf::st_as_sf) %>%
+            do.call(rbind, .)
+        )
+      },
+      warning=function(w){
+        print('WARNING sampling points for transect')
+      },
+      error=function(e){
+        print('ERROR sampling points for transect')
+      })
+
+      # tryCatch({
+      #   bad_samples <- which(sf::st_is_empty(t_pts$samp_pts))
+      #   if(length(bad_samples) > 0) {
+      #     browser()
+      #
+      #     t_pts$samp_pts <- t_pts$samp_pts[-bad_samples, "x"]
+      #
+      #     for(k in 1:length(samp_pts)) {
+      #       bad_samples <- which(sf::st_is_empty(samp_pts[[k]]))
+      #       if(length(bad_samples) > 0) {
+      #         samp_pts[[k]] <- samp_pts[[k]][-bad_samples]
+      #       }
+      #     }
+      #   }
+      # },
+      # warning=function(w){
+      #   print('WARNING removing empty sample points')
+      # },
+      # error=function(e){
+      #   print('ERROR removing empty sample points')
+      # })
 
       ## If buddy_t == TRUE, make buddy transects
       # make buffer around each point and spsample offset layer within buffer
       ## if buddy system is used
       if (buddy_t) {
+        # if (any(sf::st_is_empty(t_pts$samp_pts))) {
+        #   browser()
+        # }
+
         t_pts$buddy_pts <- mapply(
           make_buddies,
-          buff_pts,
+          samp_pts,
           t_sp,
           MoreArgs = list(t_size = t_size,
                           utm_epsg = utm_epsg)
         ) %>%
           lapply(sf::st_as_sf) %>%
           do.call(rbind, .)
-      }
 
-      if("buddy_pts" %in% names(t_pts)) {
-        bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
-        if(length(bad_buddies) > 0) {
-          t_pts$buff_pts <- t_pts$buff_pts[-bad_buddies, "x"]
-          t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
+        # tryCatch({
+        #
+        # },
+        # warning=function(w){
+        #   print('WARNING making buddy points')
+        # },
+        # error=function(e){
+        #   print('ERROR making buddy points')
+        # })
+
+        if("buddy_pts" %in% names(t_pts)) {
+          bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
+          if(length(bad_buddies) > 0) {
+            tryCatch({
+              t_pts$samp_pts <- t_pts$samp_pts[-bad_buddies, "x"]
+              t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
+            },
+            warning=function(w){
+              print('WARNING removing empty buddies')
+            },
+            error=function(e){
+              print('ERROR removing empty buddies')
+            })
+          }
         }
+
+        ## redundant??
+        # bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
+        # if(length(bad_buddies) > 0) {
+        #   tryCatch({
+        #     t_pts$samp_pts <- t_pts$samp_pts[-bad_buddies, "x"]
+        #     t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
+        #   },
+        #   warning=function(w){
+        #     print('WARNING fixing bad buddies')
+        #   },
+        #   error=function(e){
+        #     print('ERROR fixing bad buddies')
+        #   })
+        # }
       }
 
       ## Connect Transects & combine
       if(length(t_pts) > 1) {
-        if(nrow(t_pts$buddy_pts) != 0 & nrow(t_pts$buff_pts) != 0) {
+        if(nrow(t_pts$buddy_pts) != 0 & nrow(t_pts$samp_pts) != 0) {
           t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
             do.call(rbind, .)
+          # tryCatch({
+          #
+          # },
+          # warning=function(w){
+          #   print('WARNING making transect lines')
+          # },
+          # error=function(e){
+          #   print('ERROR making transect lines')
+          # })
+        }
+      } else {
+        if(nrow(t_pts$samp_pts) != 0) {
+          tryCatch({
+            t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
+              do.call(rbind, .)
+          },
+          warning=function(w){
+            print('WARNING making transect lines')
+          },
+          error=function(e){
+            print('ERROR connecting transect lines')
+          })
         }
       }
 
-      bad_buddies <- which(sf::st_is_empty(t_pts$buddy_pts))
-      if(length(bad_buddies) > 0) {
-        t_pts$buff_pts <- t_pts$buff_pts[-bad_buddies, "x"]
-        t_pts$buddy_pts <- t_pts$buddy_pts[-bad_buddies, "x"]
-      }
-
-      ## Connect Transects & combine
-      t_lines[[i]] <- lapply(t_pts, make_transect_lines, line_shp) %>%
-        do.call(rbind, .)
     }
   } ## end for each segment of line layer
 
   ## Combine transects from all segments & add attribute to add comment
-  good_t_lines <- sapply(t_lines, function(x) "sf" %in% class(x))
-  t_lines <- t_lines[good_t_lines]
+  tryCatch({
+    good_t_lines <- sapply(t_lines, function(x) "sf" %in% class(x))
+    t_lines <- t_lines[good_t_lines]
+  },
+  warning=function(w){
+    print('WARNING removing bad transects')
+  },
+  error=function(e){
+    print('ERROR removing bad transects')
+  })
 
-  transect_lines <- do.call(rbind, t_lines)
-  transect_lines$comment <- character(nrow(transect_lines))
+  tryCatch({
+    transect_lines <- do.call(rbind, t_lines)
+    transect_lines$comment <- character(nrow(transect_lines))
+  },
+  warning=function(w){
+    print('WARNING combining transects')
+  },
+  error=function(e){
+    print('ERROR combining transects')
+  })
 
   ## remove transects less than 20% of t_length
-  transect_lines <- transect_lines[transect_lines$distance >= (t_length * 0.8), ]
+  tryCatch({
+    transect_lines <- transect_lines[transect_lines$distance >= (t_length * 0.8), ]
+  },
+  warning=function(w){
+    print('WARNING removing transects less than 80% of t_length')
+  },
+  error=function(e){
+    print('ERROR removing transects less than 80% of t_length')
+  })
 
   # Return transect lines
   return(transect_lines)
@@ -231,13 +369,24 @@ make_transect_pts <- function(t_lines,
 #' @return 'sf' class object with sample points
 #' @export
 get_samp_pts <- function(t_sp, n, epsg) {
-  temp <- sp::spsample(
-    as(t_sp, "Spatial"),
-    n,
-    type = "random"
-  ) %>%
-    sf::st_as_sf() %>%
-    sf::st_set_crs(epsg)
+  if (nrow(t_sp) > 0) {
+    temp <- suppressWarnings(sf::st_sample(
+      t_sp,
+      n,
+      type = "random"
+    )) %>%
+      sf::st_as_sf() %>%
+      sf::st_cast(to = "POINT") %>%
+      sf::st_set_crs(epsg)
+    temp <- temp[!st_is_empty(temp$x), ]
+
+    return(temp)
+  } else {
+    temp <- st_sf(geometry = st_sfc(lapply(1, function(x) st_point()))) %>%
+      st_set_crs(epsg)
+
+    return(temp)
+  }
 }
 
 ## clip line layer to a valid sampling area that excludes zones where
@@ -410,6 +559,8 @@ make_buddies <- function(samp_pts,
                          t_sp_l,
                          t_size,
                          utm_epsg) {
+  # browser()
+
   samp_pts <- sf::st_as_sf(samp_pts)
   samp_pts_l <- rep(list(NA), nrow(samp_pts))
   for (i in 1:length(samp_pts_l)) {
@@ -431,6 +582,8 @@ make_buddy_pt <- function(samp_pts_j,
                            t_sp_l,
                            t_size,
                            utm_epsg) {
+  # browser()
+
   tryCatch({
     # make buffer around each point in buffer_points
     inner_buff <- sf::st_buffer(samp_pts_j, t_size)
@@ -438,14 +591,14 @@ make_buddy_pt <- function(samp_pts_j,
     buff <- sf::st_difference(outer_buff, inner_buff)
 
     # clip line to buffer
-    new_line <- sf::st_intersection(t_sp_l, buff)
+    new_line <- suppressWarnings(sf::st_intersection(t_sp_l, buff))
 
     # sample within buffer around the point
-    samps <- get_samp_pts(new_line, 5, utm_epsg)
+    samps <- get_samp_pts(new_line, 5, utm_epsg) %>%
+      sf::st_cast(to = "POINT")
     buddy_pts_j <- samps[runif(1, 1, length(samps)), ]
     return(buddy_pts_j)
   },
-  warning=function(w){},
   error=function(e){
     buddy_pts_j <- st_sf(geometry = st_sfc(lapply(1, function(x) st_point()))) %>%
       st_set_crs(utm_epsg)
@@ -456,13 +609,17 @@ make_buddy_pt <- function(samp_pts_j,
 ## make the lines for transects
 make_transect_lines <- function(t_pts,
                                 line_shp) {
+  # browser()
+
   # convert into lat long
   t_pts <- sf::st_transform(t_pts, 4326)
   line_shp <- sf::st_transform(line_shp, 4326)
   # get points on line perpendicular to transect pts
   # get shortest dist b/w point and line
+  temp <- sf::st_coordinates(t_pts) %>%
+    .[, c(1, 2)]
   dists <- geosphere::dist2Line(
-    as(t_pts, "Spatial"),
+    temp,
     as(line_shp, "Spatial")
   )
   # get points on main line perpendicular to transect
@@ -480,16 +637,21 @@ make_transect_lines <- function(t_pts,
   line_sdf <- data.frame(id = 1:length(line_list),
                          geometry = NA)
   for (j in 1:length(line_list)) {
+    temp <- sf::st_coordinates(t_pts[j, ]) %>%
+                                 .[, c(1, 2)]
     line_list[[j]] <- rbind(sf::st_coordinates(line_pts[j, ]) %>% c(),
-                            sf::st_coordinates(t_pts[j, ]) %>% c())
+                            temp %>% c())
     line_list[[j]] <- sf::st_linestring(line_list[[j]])
   }
   # reproject to lat long
+
   sfc <- do.call(sf::st_sfc, line_list)
+  temp <- sf::st_coordinates(t_pts) %>%
+    .[,c(1, 2)]
   t_lines <- sf::st_sf(
     data.frame(id = 1:length(line_list),
                azimuth = geosphere::bearing(sf::st_coordinates(line_pts),
-                                            sf::st_coordinates(t_pts)),
+                                            temp),
                geom = sfc)
   ) %>%
     sf::st_set_crs(4326)
