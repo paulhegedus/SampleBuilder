@@ -1,6 +1,6 @@
 Package: SampleBuilder
 Title: Functions for building sampling designs
-Version: 0.0.4
+Version: 2.0.0
 Authors@R: c(
     person(given = "Paul",
            family = "Hegedus",
