@@ -22,9 +22,7 @@ RoxygenNote: 7.2.3
 Depends:
     R (>= 3.0.0),
     magrittr,
-    methods
-Imports: 
     sf,
-    geosphere,
-    sp,
-    raster
+    dplyr
+Imports: 
+    

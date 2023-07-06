@@ -85,7 +85,7 @@ make_transects <- function(line_layer_path,
   if (is.null(poly_layer_path)) {
     line_layer <- get_n(line_layer, t_number)
   } else {
-    line_layer <- get_strat_n(line_layer, t_number, poly_layer, poly_)
+    line_layer <- get_strat_n(line_layer, t_number, poly_layer, poly_strat_col)
   }
 
   ## For each line layer, sample based on n
@@ -209,6 +209,55 @@ get_n <- function(line_layer,
   }
 
   return(line_layer)
+}
+
+## Get the number of transects for each line feature
+## stratified on how many polygons are closest to
+## each line layer.
+##
+## for example, if a line feature is closest to 8
+## polygon features it will get more transects than
+## a line layer closest to 1 polygon feature.
+##
+## if a line feature is not the closest to any
+## polygon feature it is not sampled
+get_strat_n <- function(line_layer,
+                        t_number,
+                        poly_layer,
+                        strat_col) {
+  poly_centroids <- sf::st_centroid(poly_layer$geometry) %>%
+    sf::st_as_sf()
+  sf::st_geometry(poly_centroids) <- "geometry"
+
+  dists <- sf::st_distance(line_layer, poly_centroids)
+  poly_centroids$id <- NA
+  for (i in 1:nrow(poly_centroids)) {
+    poly_centroids$id[i] <- line_layer$id[which.min(dists[, i])]
+  }
+
+  lines_close_to_poly <- poly_centroids[, "id"] %>%
+    group_by(id) %>%
+    summarize(n_close_polys = n()) %>%
+    sf::st_drop_geometry()
+  sub_line_layer <- merge(line_layer, lines_close_to_poly, by="id") # merge(line_layer, temp, by="id", all.x=TRUE)
+
+  weights <- sub_line_layer$n_close_polys / sum(sub_line_layer$n_close_polys)
+  sub_line_layer$n <- round(weights * t_number)
+  sub_line_layer$n <- pmax(sub_line_layer$n, 1)
+  diff_n <- t_number - sum(sub_line_layer$n)
+  if (diff_n < 0) {
+    for (i in 1:nrow(sub_line_layer)) {
+      if (sub_line_layer$n[i] > 1) {
+        sub_line_layer$n[i] <- sub_line_layer$n[i] - 1
+        diff_n <- diff_n + 1
+        if (diff_n == 0) {
+          break
+        }
+      }
+    }
+  }
+
+  return(sub_line_layer)
 }
 
 

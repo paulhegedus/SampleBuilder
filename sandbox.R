@@ -27,12 +27,12 @@ boundary <- sf::st_read(paste0(data_path, "/", boundary_filename)) %>%
   sf::st_set_crs(4326) %>%
   sf::st_transform(4326)
 line_layer_path <- paste0(data_path, "/", line_layer_path_filename)
-poly_layer_path <- NULL # paste0(data_path, "/", poly_layer_path_filename)
+poly_layer_path <- paste0(data_path, "/", poly_layer_path_filename)
 
 ##@@@@@@@@@@@ make_transects() @@@@@@@@@@@@@@@@@
 line_layer_path = line_layer_path
 poly_layer_path = poly_layer_path
-poly_strat_col = NULL
+poly_strat_col = 'strat'
 t_number = 20
 t_length = 1000
 t_size = 10
@@ -40,10 +40,45 @@ buddy_t = TRUE
 direction = c("positive", "negative")
 allow_overlaps = FALSE
 
+
+## Import line and poly layers (puts in UTM)
+line_layer <- get_data(line_layer_path)
+if (!is.null(poly_layer_path)) {
+  poly_layer <- get_data(poly_layer_path)
+}
+
+## Clip line layer to avoid overlapping transects
+if (!allow_overlaps) {
+  line_layer <- clip_to_valid_sampling_area(line_layer, t_length)
+}
+
+## If buddy_t cut t_number in half
+if (buddy_t) {
+  t_number <- ceiling(t_number / 2)
+}
+
+## get_n_strat
+if (is.null(poly_layer_path)) {
+  line_layer <- get_n(line_layer, t_number)
+} else {
+  line_layer <- get_strat_n(line_layer, t_number, poly_layer, poly_strat_col)
+}
+
+## For each line layer, sample based on n
+epsg <- calcUTMzone(line_layer)
+sample_result <- sample_line(line_layer, t_size, epsg, buddy_t)
+samples <- do.call(rbind, sample_result)
+
+## Create transects
+transect_lines <- create_transects(samples, line_layer, t_length, epsg, direction)
+
+
+
+
 transects <- make_transects(
   line_layer_path = line_layer_path,
-  poly_layer_path = NULL,
-  poly_strat_col = NULL,
+  poly_layer_path = poly_layer_path,
+  poly_strat_col = poly_strat_col,
   t_number = 100,
   t_length = 500,
   t_size = 10,
