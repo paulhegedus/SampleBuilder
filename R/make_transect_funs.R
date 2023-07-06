@@ -94,7 +94,7 @@ make_transects <- function(line_layer_path,
   samples <- do.call(rbind, sample_result)
 
   ## Create transects
-  transect_lines <- create_transects(samples, line_layer, t_length, epsg)
+  transect_lines <- create_transects(samples, line_layer, t_length, epsg, direction)
 
   ## Return transect lines
   return(transect_lines)
@@ -318,7 +318,7 @@ sample_line <- function(line_layer, t_size, epsg, buddy_t) {
 
 
 ## make the transect lines for each point
-create_transects <- function(samples, line_layer, t_length, epsg) {
+create_transects <- function(samples, line_layer, t_length, epsg, direction) {
   for (i in 1:nrow(samples)) {
     buff <- sf::st_buffer(samples[i, ], t_length)
     sub_line <- line_layer[line_layer$id == buff$line_id, "geometry"] %>%
