@@ -13,25 +13,27 @@
 #' @export
 calcUTMzone = function(FILE) {
   if (!is.null(FILE)) {
-    crs_raster <- suppressWarnings(raster::crs(FILE))
-    if (is.na(crs_raster)) {
-      sf::st_crs(FILE) <- 4326
+    crs <- sf::st_crs(FILE)
+    if (is.null(crs) || is.na(crs$proj4string)) {
+      crs <- sf::st_crs(FILE, 4326)
     }
     FILE <- sf::st_transform(FILE, 4326)
     # get boundary of file
     bounds <- sf::st_bbox(FILE)
     # calculate zone
-    utm_zone <- ceiling((bounds["xmin"] + 180) / 6) %>%
-      as.numeric()
+    utm_zone <- ceiling((bounds["xmin"] + 180) / 6)
     # check hemisphere
     if (bounds["ymin"] > 0 | bounds["ymax"] > 0) {
-      utm_epsg <- paste0(326, utm_zone)
+      utm_epsg <- paste0("326", utm_zone)
     } else {
-      utm_epsg <- paste0(327, utm_zone)
+      utm_epsg <- paste0("327", utm_zone)
     }
+    return(as.integer(utm_epsg))
   }
-  return(as.integer(utm_epsg))
+  return(NULL)
 }
+
+
 #' @title Import data from path and convert to UTM
 #'
 #' @description Imports data from specified path. Calculates the UTM

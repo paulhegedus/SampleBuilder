@@ -6,6 +6,8 @@
 \usage{
 make_transects(
   line_layer_path,
+  poly_layer_path = NULL,
+  poly_strat_col = NULL,
   t_number,
   t_length,
   t_size,
@@ -17,6 +19,9 @@ make_transects(
 \arguments{
 \item{line_layer_path}{Character, path to the .shp file of the line layer to build
 transects from.}
+
+\item{poly_layer_path}{Optional character, path to the .shp file of the polygon layer to
+stratify transects on.}
 
 \item{t_number}{Numeric, the approximate number of transects to generate.}
 
@@ -42,7 +47,7 @@ to a user supplied line feature. User options include the number of transects,
 the length of the transect (in meters), and the size (assumed to be a square) of
 each transect cell (in meters).
 
-Set 'buddy_t' to TRUE to generate a transect less than 3 transect sizes away but at
+Set 'buddy_t' to TRUE to generate a transect less 3 transect sizes away but at
 least 1 transect size away so that sampling can be performed traveling away from
 the line feature and back to the line feature.
 
@@ -56,7 +61,11 @@ FALSE (default) will restrict sampling to where the risk is minimized. This is d
 by making a buffer the width of the transects around the line layer and removing
 sections of the line layer where the buffer overlaps.
 
-Note, transect locations are random, so every time this function is run you will
-receive a new set of transects. Also note, if error occurs saying "n too small"
-simply rerun the function a couple times.
+Note, if the number of transects are smaller than the number of distinct line features
+then transects will be placed on random line features. If the number of transects is
+equal to the number of distinct line features then one transect will be placed on each
+line feature. If the number of transects is greater than the number of line features
+then at least one transect will be placed on each line feature and remaining transects
+will be distributed by the length of line features (e.g. longer line features have more
+transects).
 }
