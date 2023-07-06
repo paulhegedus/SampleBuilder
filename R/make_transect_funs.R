@@ -399,8 +399,8 @@ build_transect <- function(x, y, angle_degrees, t_length, t_dir, line_id, point_
   transect$line_id <- line_id
   transect$point_id <- point_id
   transect$direction <- t_dir
-  transect$azimuth_deg <- angle_degrees
-  transect$distance_m <- sf::st_length(transect) %>% as.numeric()
+  transect$azimuth <- angle_degrees
+  transect$dist_m <- sf::st_length(transect) %>% as.numeric()
 
   return(transect)
 }
