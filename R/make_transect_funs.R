@@ -228,6 +228,8 @@ get_strat_n <- function(line_layer,
   poly_centroids <- sf::st_centroid(poly_layer$geometry) %>%
     sf::st_as_sf()
   sf::st_geometry(poly_centroids) <- "geometry"
+  poly_centroids$poly_id <- poly_layer$id
+  poly_centroids$poly_area <- sf::st_area(poly_layer$geometry) %>% as.numeric()
 
   dists <- sf::st_distance(line_layer, poly_centroids)
   poly_centroids$id <- NA
@@ -235,13 +237,15 @@ get_strat_n <- function(line_layer,
     poly_centroids$id[i] <- line_layer$id[which.min(dists[, i])]
   }
 
-  lines_close_to_poly <- poly_centroids[, "id"] %>%
+  lines_close_to_poly <- poly_centroids[, c("poly_area", "id")] %>%
     group_by(id) %>%
-    summarize(n_close_polys = n()) %>%
+    summarize(n_close_polys = n(),
+              sum_poly_area =sum(poly_area)) %>%
     sf::st_drop_geometry()
+  lines_close_to_poly$n_x_area <- lines_close_to_poly$n_close_polys * lines_close_to_poly$sum_poly_area
   sub_line_layer <- merge(line_layer, lines_close_to_poly, by="id") # merge(line_layer, temp, by="id", all.x=TRUE)
 
-  weights <- sub_line_layer$n_close_polys / sum(sub_line_layer$n_close_polys)
+  weights <- sub_line_layer$n_x_area / sum(sub_line_layer$n_x_area)
   sub_line_layer$n <- round(weights * t_number)
   sub_line_layer$n <- pmax(sub_line_layer$n, 1)
   diff_n <- t_number - sum(sub_line_layer$n)

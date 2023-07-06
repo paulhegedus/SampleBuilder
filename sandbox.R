@@ -58,20 +58,41 @@ if (buddy_t) {
 }
 
 ## get_n_strat
-if (is.null(poly_layer_path)) {
-  line_layer <- get_n(line_layer, t_number)
-} else {
-  line_layer <- get_strat_n(line_layer, t_number, poly_layer, poly_strat_col)
+poly_centroids <- sf::st_centroid(poly_layer$geometry) %>%
+  sf::st_as_sf()
+sf::st_geometry(poly_centroids) <- "geometry"
+poly_centroids$poly_id <- poly_layer$id
+poly_centroids$poly_area <- sf::st_area(poly_layer$geometry) %>% as.numeric()
+
+dists <- sf::st_distance(line_layer, poly_centroids)
+poly_centroids$id <- NA
+for (i in 1:nrow(poly_centroids)) {
+  poly_centroids$id[i] <- line_layer$id[which.min(dists[, i])]
 }
 
-## For each line layer, sample based on n
-epsg <- calcUTMzone(line_layer)
-sample_result <- sample_line(line_layer, t_size, epsg, buddy_t)
-samples <- do.call(rbind, sample_result)
+lines_close_to_poly <- poly_centroids[, c("poly_area", "id")] %>%
+  group_by(id) %>%
+  summarize(n_close_polys = n(),
+            sum_poly_area =sum(poly_area)) %>%
+  sf::st_drop_geometry()
+lines_close_to_poly$n_x_area <- lines_close_to_poly$n_close_polys * lines_close_to_poly$sum_poly_area
+sub_line_layer <- merge(line_layer, lines_close_to_poly, by="id") # merge(line_layer, temp, by="id", all.x=TRUE)
 
-## Create transects
-transect_lines <- create_transects(samples, line_layer, t_length, epsg, direction)
-
+weights <- sub_line_layer$n_x_area / sum(sub_line_layer$n_x_area)
+sub_line_layer$n <- round(weights * t_number)
+sub_line_layer$n <- pmax(sub_line_layer$n, 1)
+diff_n <- t_number - sum(sub_line_layer$n)
+if (diff_n < 0) {
+  for (i in 1:nrow(sub_line_layer)) {
+    if (sub_line_layer$n[i] > 1) {
+      sub_line_layer$n[i] <- sub_line_layer$n[i] - 1
+      diff_n <- diff_n + 1
+      if (diff_n == 0) {
+        break
+      }
+    }
+  }
+}
 
 
 
