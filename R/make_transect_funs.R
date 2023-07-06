@@ -213,11 +213,15 @@ get_n <- function(line_layer,
 
 ## Get the number of transects for each line feature
 ## stratified on how many polygons are closest to
-## each line layer.
+## each line layer & how large the total area of
+## close polygons are.
 ##
 ## for example, if a line feature is closest to 8
 ## polygon features it will get more transects than
-## a line layer closest to 1 polygon feature.
+## a line layer closest to 1 polygon feature. However,
+## if the 1 polygon feature is large the line feature
+## will have an increased number of transects compared
+## to a line feature that is close to 1 small polygon.
 ##
 ## if a line feature is not the closest to any
 ## polygon feature it is not sampled
