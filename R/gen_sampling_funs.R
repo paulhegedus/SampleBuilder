@@ -47,6 +47,8 @@ get_data <- function(data_path) {
   x <- sf::st_read(data_path)
   utm_epsg <- calcUTMzone(x)
   x <- sf::st_transform(x, crs = sf::st_crs(utm_epsg))
+  sf::st_geometry(x) <- "geometry"
+  x$id <- 1:nrow(x)
   return(x)
 }
 

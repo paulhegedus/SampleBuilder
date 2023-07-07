@@ -1,5 +1,108 @@
 #' @title Make transect lines for sampling
 #'
+#' @description Create transects from an origin point in a wagonwheel pattern.
+#'
+#' @param origin_layer_path Character, path to the .shp file of the polygon or point layer to build
+#' transects from.
+#' @param t_length Numeric, the desired length of transects (in meters).
+#' @param spokes Numeric, the number of spokes (number of transects) in the wheel design.
+#' @param t_size Numeric, the size (Y x Y) of the transect cells (in meters).
+#' @return A 'sf' object with transect lines and ID numbers in lat long.
+#' @export
+make_wagonwheel_transects <- function(origin_layer_path,
+                                      t_length,
+                                      spokes,
+                                      t_size) {
+  # browser()
+
+  ## Parameter checks
+  stopifnot(is.character(origin_layer_path),
+            is.numeric(spokes),
+            is.numeric(t_length),
+            is.numeric(t_size))
+
+  ## Import sample layers (puts in UTM)
+  origin_layer <- get_data(origin_layer_path)
+
+  ## If polygon layer make centroids
+  if (all(sf::st_geometry_type(origin_layer)=="POLYGON")) {
+    sample_origin <- sf::st_centroid(origin_layer$geometry) %>%
+      sf::st_as_sf()
+    sf::st_geometry(sample_origin) <- "geometry"
+    sample_origin$id <- origin_layer$id
+  } else {
+    sample_origin <- origin_layer
+  }
+  epsg <- calcUTMzone(sample_origin)
+
+  ## Create a buffer around each point and sample number of spokes
+  for (i in 1:nrow(sample_origin)) {
+    buff <- sf::st_buffer(sample_origin[i, "geometry"], t_length)
+    # ggplot() + geom_sf(data = buff) + geom_sf(data=sample_origin$geometry[i])
+    buff_boundary <- sf::st_boundary(buff)
+
+    spoke_pts <- sf::st_sample(
+      buff_boundary,
+      spokes,
+      type = "regular" # "random"
+    ) %>%
+      sf::st_as_sf()
+    is_empty <- sf::st_is_empty(spoke_pts)
+    spoke_pts <- spoke_pts[!is_empty, ] %>%
+      sf::st_cast('POINT')
+    spoke_pts <- sf::st_cast(spoke_pts, 'POINT')
+    sf::st_geometry(spoke_pts) <- "geometry"
+    # ggplot() + geom_sf(data = buff) + geom_sf(data=sample_origin$geometry[i]) + geom_sf(data=spoke_pts$geometry)
+
+    point_coords <- sf::st_coordinates(sample_origin[i, ])
+    for (k in 1:nrow(spoke_pts)) {
+      spoke_coords <- sf::st_coordinates(spoke_pts[k, ])
+      angle <- atan2(point_coords[1, "Y"] - spoke_coords[1, "Y"], spoke_coords[1, "X"] - point_coords[1, "X"])
+      angle_degrees <- angle * 180 / pi
+
+      transect <- sf::st_linestring(matrix(c(point_coords[1, "X"], point_coords[1, "Y"],
+                                             spoke_coords[1, "X"], spoke_coords[1, "Y"]),
+                                           ncol = 2,
+                                           byrow = TRUE)) %>%
+        sf::st_cast("MULTILINESTRING") %>%
+        sf::st_geometry() %>%
+        sf::st_set_crs(epsg) %>%
+        sf::st_as_sf()
+      sf::st_geometry(transect) <- "geometry"
+
+      transect$origin_id <- sample_origin$id[i]
+      transect$transect_id <- k
+      transect$azimuth <- angle_degrees
+      transect$dist_m <- sf::st_length(transect) %>% as.numeric()
+      # ggplot() +
+      #   geom_sf(data = buff) +
+      #   geom_sf(data=sample_origin$geometry[i]) +
+      #   geom_sf(data=spoke_pts$geometry[k]) +
+      #   geom_sf(data=transect)
+      if (k == 1) {
+        transect_lines <- transect
+      } else {
+        transect_lines <- rbind(transect_lines, transect)
+      }
+    }
+    if (i == 1) {
+      wagonwheels <- transect_lines
+    } else {
+      wagonwheels <- rbind(wagonwheels, transect_lines)
+    }
+    # ggplot() +
+    #   geom_sf(data = buff) +
+    #   geom_sf(data=sample_origin$geometry[i]) +
+    #   geom_sf(data=spoke_pts$geometry) +
+    #   geom_sf(data=wagonwheels, col='red')
+  }
+  wagonwheels$id <- 1:nrow(wagonwheels)
+
+  return(wagonwheels)
+}
+
+#' @title Make transect lines for sampling
+#'
 #' @description For returning a specified number of transects perpendicular
 #' to a user supplied line feature. User options include the number of transects,
 #' the length of the transect (in meters), and the size (assumed to be a square) of
