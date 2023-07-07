@@ -23,6 +23,8 @@ transects from.}
 \item{poly_layer_path}{Optional character, path to the .shp file of the polygon layer to
 stratify transects on.}
 
+\item{poly_strat_col}{TODO - Optional character, column name to use for stratifying.}
+
 \item{t_number}{Numeric, the approximate number of transects to generate.}
 
 \item{t_length}{Numeric, the desired length of transects (in meters).}

@@ -1,4 +1,6 @@
 
+#' @importFrom utils head
+NULL
 #' @importFrom magrittr %>%
 NULL
 #' @importFrom methods as

@@ -134,6 +134,7 @@ make_wagonwheel_transects <- function(origin_layer_path,
 #' transects from.
 #' @param poly_layer_path Optional character, path to the .shp file of the polygon layer to
 #' stratify transects on.
+#' @param poly_strat_col TODO - Optional character, column name to use for stratifying.
 #' @param t_number Numeric, the approximate number of transects to generate.
 #' @param t_length Numeric, the desired length of transects (in meters).
 #' @param t_size Numeric, the size (Y x Y) of the transect cells (in meters).
@@ -345,8 +346,8 @@ get_strat_n <- function(line_layer,
   }
 
   lines_close_to_poly <- poly_centroids[, c("poly_area", "id")] %>%
-    group_by(id) %>%
-    summarize(n_close_polys = n(),
+    dplyr::group_by(id) %>%
+    dplyr::summarize(n_close_polys = n(),
               sum_poly_area =sum(poly_area)) %>%
     sf::st_drop_geometry()
   lines_close_to_poly$n_x_area <- lines_close_to_poly$n_close_polys * lines_close_to_poly$sum_poly_area
@@ -487,7 +488,7 @@ create_transects <- function(samples, line_layer, t_length, epsg, direction) {
 
     line_coords <- sf::st_cast(sub_line, "POINT")
     dists <- sf::st_distance(samples[i, ], line_coords) %>% as.numeric()
-    line_coords <- line_coords[head(order(dists), 1), ] %>%
+    line_coords <- line_coords[utils::head(order(dists), 1), ] %>%
       sf::st_coordinates()
     point_coords <- sf::st_coordinates(samples[i, ])
 
